@@ -1,37 +1,58 @@
 #!/bin/bash
+
+set -e
+
 echo "****************************************"
 echo " Setting up Capstone Environment"
 echo "****************************************"
 
-echo "Installing Python 3.9 and Virtual Environment"
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install -y python3.9 python3.9-venv
+# Check Python 3.14
+echo "Checking Python version..."
 
-echo "Checking the Python version..."
-python3.9 --version
+if command -v python3.14 >/dev/null 2>&1; then
+    PYTHON=python3.14
+elif command -v python >/dev/null 2>&1 && python --version | grep -q "3.14"; then
+    PYTHON=python
+else
+    echo "ERROR: Python 3.14 is not installed."
+    exit 1
+fi
 
-echo "Creating a Python virtual environment"
-python3.9 -m venv ~/venv
+$PYTHON --version
 
-echo "Configuring the developer environment..."
-echo "# DevOps Capstone Project additions" >> ~/.bashrc
-echo "export GITHUB_ACCOUNT=$GITHUB_ACCOUNT" >> ~/.bashrc
-echo 'export PS1="\[\e]0;\u:\W\a\]${debian_chroot:+($debian_chroot)}\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\W\[\033[00m\]\$ "' >> ~/.bashrc
-echo "source ~/venv/bin/activate" >> ~/.bashrc
+# Create virtual environment
+echo "Creating Python virtual environment..."
 
+$PYTHON -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Upgrade pip
+echo "Upgrading pip and wheel..."
+
+python -m pip install --upgrade pip wheel setuptools
+
+# Install dependencies
 echo "Installing Python dependencies..."
-source ~/venv/bin/activate && python3.9 -m pip install --upgrade pip wheel
-source ~/venv/bin/activate && python3.9 -m pip install -r requirements.txt
 
-echo "Starting the Postgres Docker container..."
-make db
+python -m pip install -r requirements.txt
 
-echo "Checking the Postgres Docker container..."
-docker ps
+# Optional PostgreSQL Docker setup
+if [ "${START_DATABASE:-0}" = "1" ]; then
+    echo "Starting PostgreSQL Docker container..."
+    make db
+    docker ps
+else
+    echo "Skipping PostgreSQL Docker setup."
+    echo "Set START_DATABASE=1 to enable it."
+fi
 
 echo "****************************************"
 echo " Capstone Environment Setup Complete"
 echo "****************************************"
+
 echo ""
-echo "Use 'exit' to close this terminal and open a new one to initialize the environment"
+echo "Activate environment using:"
+echo "source .venv/bin/activate"
 echo ""
